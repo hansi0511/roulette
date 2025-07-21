@@ -1,3 +1,4 @@
+import Tesseract from 'tesseract.js';
 import React, { useState } from 'react';
 
 const europeanWheel = [
@@ -21,6 +22,34 @@ export default function RouletteCalculator() {
     return dir === 'CW'
       ? (toIndex - fromIndex + 37) % 37
       : (fromIndex - toIndex + 37) % 37;
+  };
+
+  
+  const captureScreen = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      const track = stream.getVideoTracks()[0];
+      const imageCapture = new ImageCapture(track);
+      const bitmap = await imageCapture.grabFrame();
+
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, 0, 0);
+      track.stop();
+
+      const dataUrl = canvas.toDataURL();
+      Tesseract.recognize(dataUrl, 'eng').then(({ data: { text } }) => {
+        const numbers = text.match(/\b\d{1,2}\b/g);
+        if (numbers && numbers.length >= 2) {
+          setPrevNumber(numbers[0]);
+          setCurrNumber(numbers[1]);
+        }
+      });
+    } catch (err) {
+      alert("Screen capture failed: " + err.message);
+    }
   };
 
   const calculateBet = () => {
@@ -70,6 +99,8 @@ export default function RouletteCalculator() {
         <input type="number" value={bankroll} onChange={e => setBankroll(Number(e.target.value))} className="border p-2 rounded" />
 
         <button onClick={calculateBet} className="bg-blue-600 text-white p-2 rounded">Calculate</button>
+      <button onClick={captureScreen} className="bg-yellow-500 text-white p-2 rounded">📸 Capture Screen & OCR</button>
+
       </div>
 
       {result && (
